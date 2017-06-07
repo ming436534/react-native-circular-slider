@@ -1,5 +1,5 @@
 import React, { PureComponent, PropTypes } from 'react';
-import { PanResponder, View } from 'react-native';
+import { PanResponder, View, Text } from 'react-native';
 import Svg, { Circle, G, LinearGradient, Path, Defs, Stop } from 'react-native-svg';
 import range from 'lodash.range';
 import { interpolateHcl as interpolateGradient } from 'd3-interpolate';
@@ -62,6 +62,7 @@ export default class CircularSlider extends PureComponent {
     stopIcon: PropTypes.element,
     startIcon: PropTypes.element,
     containerStyle: View.propTypes.style,
+    text: PropTypes.string,
   }
 
   static defaultProps = {
@@ -77,6 +78,7 @@ export default class CircularSlider extends PureComponent {
   state = {
     circleCenterX: false,
     circleCenterY: false,
+    containerWidth: this.props.radius,
   }
 
   componentWillMount() {
@@ -85,7 +87,6 @@ export default class CircularSlider extends PureComponent {
       onMoveShouldSetPanResponderCapture: (evt, gestureState) => true,
 
       onPanResponderMove: (evt, { moveX, moveY }) => {
-        console.log('hi');
         const { circleCenterX, circleCenterY } = this.state;
         const { angleLength, startAngle, onUpdate } = this.props;
 
@@ -126,20 +127,24 @@ export default class CircularSlider extends PureComponent {
     });
   }
 
-  onLayout = () => {
+  onLayout = (evt) => {
+    this.setState({
+      containerWidth: evt.nativeEvent.layout.width,
+    });
     this.setCircleCenter();
   }
 
   setCircleCenter = () => {
-    this._circle.measure((x, y, w, h, px , py) => {
-      const halfOfContainer = this.getContainerWidth() / 2;
-      this.setState({ circleCenterX: px + halfOfContainer, circleCenterY: py + halfOfContainer });
-    });
+    setTimeout(() => {
+      this._view.measure((x, y, w, h, px, py) => {
+        this.setState({ circleCenterX: px + w/2, circleCenterY: py + h/2 });
+      });
+    }, 500);
   }
 
   getContainerWidth() {
     const { strokeWidth, radius } = this.props;
-    return strokeWidth + radius * 2 + 2;
+    return strokeWidth + radius * 2 + 20;
   }
 
   render() {
@@ -152,11 +157,10 @@ export default class CircularSlider extends PureComponent {
     const stop = calculateArcCircle(segments - 1, segments, radius, startAngle, angleLength);
     
     return (
-      <View style={[{ width: containerWidth, height: containerWidth, alignItems: 'center' }, this.props.containerStyle]} onLayout={this.onLayout}>
+      <View ref={view => this._view = view} style={this.props.containerStyle} onLayout={this.onLayout}>
         <Svg
           height={containerWidth+20}
           width={containerWidth+20}
-          ref={circle => this._circle = circle}
         >
           <Defs>
             {
@@ -180,8 +184,8 @@ export default class CircularSlider extends PureComponent {
           <G transform={{ translate: `${strokeWidth/2 + radius + 1}, ${strokeWidth/2 + radius + 1}` }}>
             <Circle
               r={radius}
-              cx={10}
-              cy={10}
+              cx={20}
+              cy={20}
               strokeWidth={strokeWidth}
               fill="transparent"
               stroke={bgCircleColor}
@@ -203,8 +207,8 @@ export default class CircularSlider extends PureComponent {
                   <Path
                     d={d}
                     key={i}
-                    x={10}
-                    y={10}
+                    x={20}
+                    y={20}
                     strokeWidth={strokeWidth}
                     stroke={`url(#${getGradientId(i)})`}
                     fill="transparent"
@@ -219,7 +223,7 @@ export default class CircularSlider extends PureComponent {
 
             <G
               fill={gradientColorTo}
-              transform={{ translate: `${stop.toX}, ${stop.toY}` }}
+              transform={{ translate: `${stop.toX+20}, ${stop.toY+20}` }}
               onPressIn={() => this.setState({ angleLength: angleLength + Math.PI / 2 })}
               {...this._wakePanResponder.panHandlers}
             >
@@ -234,9 +238,8 @@ export default class CircularSlider extends PureComponent {
 
             <G
               fill={gradientColorFrom}
-              transform={{ translate: `${start.fromX}, ${start.fromY}` }}
+              transform={{ translate: `${start.fromX+20}, ${start.fromY+20}` }}
               onPressIn={() => this.setState({ startAngle: startAngle - Math.PI / 2, angleLength: angleLength + Math.PI / 2 })}
-              {...this._sleepPanResponder.panHandlers}
             >
               {
                 startIcon
@@ -244,6 +247,9 @@ export default class CircularSlider extends PureComponent {
             </G>
           </G>
         </Svg>
+        <View style={{ position: 'absolute', width: 100, top: this.state.containerWidth/2 - 10, right: this.state.containerWidth/2 - 50 }}>
+              <Text style={{ color: 'white', fontSize: 20, textAlign: 'center' }}>{this.props.text}</Text>
+        </View>
       </View>
     );
   }
