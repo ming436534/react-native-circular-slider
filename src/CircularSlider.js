@@ -17,8 +17,8 @@ function calculateArcColor(index0, segments, gradientColorFrom, gradientColorTo)
 
 function calculateArcCircle(index0, segments, radius, startAngle0 = 0, angleLength0 = 2 * Math.PI) {
   // Add 0.0001 to the possible angle so when start = stop angle, whole circle is drawn
-  const startAngle = startAngle0 % (2 * Math.PI);
-  const angleLength = angleLength0 % (2 * Math.PI);
+  const startAngle = startAngle0;
+  const angleLength = angleLength0;
   const index = index0 + 1;
   const fromAngle = angleLength / segments * (index - 1) + startAngle;
   const toAngle = angleLength / segments * index + startAngle;
@@ -62,6 +62,7 @@ export default class CircularSlider extends PureComponent {
     stopIcon: PropTypes.element,
     startIcon: PropTypes.element,
     containerStyle: View.propTypes.style,
+    textStyle: Text.propTypes.style,
     text: PropTypes.string,
   }
 
@@ -82,6 +83,7 @@ export default class CircularSlider extends PureComponent {
   }
 
   componentWillMount() {
+    this.previousAngle = this.props.startAngle;
     this._sleepPanResponder = PanResponder.create({
       onMoveShouldSetPanResponder: (evt, gestureState) => true,
       onMoveShouldSetPanResponderCapture: (evt, gestureState) => true,
@@ -90,7 +92,7 @@ export default class CircularSlider extends PureComponent {
         const { circleCenterX, circleCenterY } = this.state;
         const { angleLength, startAngle, onUpdate } = this.props;
 
-        const currentAngleStop = (startAngle + angleLength) % (2 * Math.PI);
+        const currentAngleStop = (startAngle + angleLength);
         let newAngle = Math.atan2(moveY - circleCenterY, moveX - circleCenterX) + Math.PI/2;
 
         if (newAngle < 0) {
@@ -103,7 +105,7 @@ export default class CircularSlider extends PureComponent {
           newAngleLength += 2 * Math.PI;
         }
 
-        onUpdate({ startAngle: newAngle, angleLength: newAngleLength % (2 * Math.PI) });
+        onUpdate({ startAngle: newAngle, angleLength: newAngleLength });
       },
     });
 
@@ -116,11 +118,21 @@ export default class CircularSlider extends PureComponent {
         const { angleLength, startAngle, onUpdate } = this.props;
 
         let newAngle = Math.atan2(moveY - circleCenterY, moveX - circleCenterX) + Math.PI/2;
-        let newAngleLength = (newAngle - startAngle) % (2 * Math.PI);
+        if (newAngle < 0) newAngle += 2*Math.PI;
+
+        if (newAngle > Math.PI * 3 / 2 && this.previousAngle < Math.PI / 2) {
+          newAngle = 0;
+        } else if (this.previousAngle > Math.PI * 3 / 2 && newAngle < Math.PI / 2) {
+          newAngle = 2 * Math.PI;
+        }
+
+        let newAngleLength = newAngle - startAngle;
 
         if (newAngleLength < 0) {
           newAngleLength += 2 * Math.PI;
         }
+
+        this.previousAngle = newAngle;
 
         onUpdate({ startAngle, angleLength: newAngleLength });
       },
@@ -216,7 +228,19 @@ export default class CircularSlider extends PureComponent {
                 )
               })
             }
+            {/*
+              ##### Start Icon
+            */}
 
+            <G
+              fill={gradientColorFrom}
+              transform={{ translate: `${start.fromX+20}, ${start.fromY+20}` }}
+              onPressIn={() => this.setState({ startAngle: startAngle - Math.PI / 2, angleLength: angleLength + Math.PI / 2 })}
+            >
+              {
+                startIcon
+              }
+            </G>
             {/*
               ##### Stop Icon
             */}
@@ -231,24 +255,10 @@ export default class CircularSlider extends PureComponent {
                 stopIcon
               }
             </G>
-
-            {/*
-              ##### Start Icon
-            */}
-
-            <G
-              fill={gradientColorFrom}
-              transform={{ translate: `${start.fromX+20}, ${start.fromY+20}` }}
-              onPressIn={() => this.setState({ startAngle: startAngle - Math.PI / 2, angleLength: angleLength + Math.PI / 2 })}
-            >
-              {
-                startIcon
-              }
-            </G>
           </G>
         </Svg>
         <View style={{ position: 'absolute', width: 100, top: this.state.containerWidth/2 - 10, right: this.state.containerWidth/2 - 50 }}>
-              <Text style={{ color: 'white', fontSize: 20, textAlign: 'center' }}>{this.props.text}</Text>
+              <Text style={[{ color: 'white', fontSize: 20, textAlign: 'center' }, this.props.textStyle]}>{this.props.text}</Text>
         </View>
       </View>
     );
